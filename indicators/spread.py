@@ -4,10 +4,10 @@
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 import sys
 sys.path.append('..')
-from config import JP_10Y_YIELD_MANUAL, ALERT_THRESHOLDS
+from config import ALERT_THRESHOLDS
 
 
 def _to_scalar(val):
@@ -21,7 +21,7 @@ def _to_scalar(val):
 
 def calculate_yield_spread(
     us_yield: pd.DataFrame,
-    jp_yield: float = JP_10Y_YIELD_MANUAL
+    jp_yield: Union[float, pd.DataFrame] = 1.05
 ) -> pd.DataFrame:
     """
     计算美日10年期国债利差
@@ -38,18 +38,38 @@ def calculate_yield_spread(
     
     spread_df = pd.DataFrame(index=us_yield.index)
     
-    # 获取美债收益率
+    # 获取美债收益率 (确保是 Series)
     if 'Close' in us_yield.columns:
         us_rate = us_yield['Close']
     elif 'US_10Y_Yield' in us_yield.columns:
         us_rate = us_yield['US_10Y_Yield']
     else:
-        # 尝试获取第一列
         us_rate = us_yield.iloc[:, 0]
     
-    spread_df['US_10Y'] = us_rate
-    spread_df['JP_10Y'] = jp_yield
-    spread_df['Spread'] = us_rate - jp_yield
+    # 确保 us_rate 是 Series
+    if isinstance(us_rate, pd.DataFrame):
+        us_rate = us_rate.iloc[:, 0]
+    us_rate = pd.Series(us_rate.values, index=us_yield.index, name='US_10Y')
+    
+    # 获取日债收益率
+    if isinstance(jp_yield, pd.DataFrame):
+        if 'JP_10Y_Yield' in jp_yield.columns:
+            jp_rate = jp_yield['JP_10Y_Yield']
+        elif 'Close' in jp_yield.columns:
+            jp_rate = jp_yield['Close']
+        else:
+            jp_rate = jp_yield.iloc[:, 0]
+        # 确保 jp_rate 是 Series
+        if isinstance(jp_rate, pd.DataFrame):
+            jp_rate = jp_rate.iloc[:, 0]
+        # 对齐索引
+        jp_rate = pd.Series(jp_rate.values, index=jp_yield.index).reindex(us_yield.index, method='ffill')
+    else:
+        jp_rate = float(jp_yield)
+    
+    spread_df['US_10Y'] = us_rate.values
+    spread_df['JP_10Y'] = jp_rate.values if isinstance(jp_rate, pd.Series) else jp_rate
+    spread_df['Spread'] = spread_df['US_10Y'] - spread_df['JP_10Y']
     
     return spread_df
 

@@ -75,18 +75,25 @@ def get_us_10y_yield(period: str = "6mo") -> pd.DataFrame:
 def get_jp_10y_yield(period: str = "6mo") -> pd.DataFrame:
     """
     获取日本10年期国债收益率
-    由于yfinance无法直接获取日债收益率，使用手动设置的值
-    或者使用日本国债ETF价格作为代理
+    使用 yfinance ^JGB10Y 代码获取实时数据
+    如果获取失败，使用手动设置的备用值
     """
-    # 创建一个与美债同期的日期序列，使用手动设置的固定收益率
+    try:
+        data = fetch_ticker_data(TICKERS["JP_10Y"], period)
+        if not data.empty:
+            data = data.rename(columns={"Close": "JP_10Y_Yield"})
+            return data
+    except Exception as e:
+        st.warning(f"无法获取日本国债收益率: {str(e)}")
+    
+    # 如果获取失败，使用手动设置的备用值
     us_data = get_us_10y_yield(period)
     if us_data.empty:
         return pd.DataFrame()
     
-    # 使用配置中的手动设置值
     jp_yield = pd.DataFrame(index=us_data.index)
     jp_yield["JP_10Y_Yield"] = JP_10Y_YIELD_MANUAL
-    
+    st.info("使用手动设置的日本国债收益率备用值")
     return jp_yield
 
 

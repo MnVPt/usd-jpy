@@ -9,7 +9,8 @@
 TICKERS = {
     # 国债收益率
     "US_10Y": "^TNX",           # 美国10年期国债收益率
-    "JP_10Y_PROXY": "1329.T",   # 日本10年期国债ETF (iShares日本国债ETF)
+    "JP_10Y": "^JGB10Y",        # 日本10年期国债收益率
+    "JP_10Y_PROXY": "1329.T",   # 日本10年期国债ETF (iShares日本国债ETF) - 备用
     
     # 汇率
     "USDJPY": "JPY=X",          # 美元兑日元

@@ -11,12 +11,12 @@ from streamlit_autorefresh import st_autorefresh
 # 导入配置
 from config import (
     TICKERS, UI_CONFIG, CALC_PARAMS, ALERT_THRESHOLDS,
-    JP_10Y_YIELD_MANUAL, HISTORICAL_EVENTS
+    HISTORICAL_EVENTS
 )
 
 # 导入数据获取
 from data.fetcher import (
-    get_us_10y_yield, get_usdjpy, get_all_data,
+    get_us_10y_yield, get_jp_10y_yield, get_usdjpy, get_all_data,
     get_current_usdjpy, get_current_us_10y, get_data_freshness
 )
 
@@ -164,19 +164,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 日本国债收益率手动输入
-    st.subheader("🇯🇵 日本国债收益率")
-    jp_yield_input = st.number_input(
-        "10年期日债收益率 (%)",
-        min_value=0.0,
-        max_value=5.0,
-        value=JP_10Y_YIELD_MANUAL,
-        step=0.05,
-        help="由于yfinance无法直接获取日债收益率，请手动输入最新值"
-    )
-    
-    st.markdown("---")
-    
     # 预警阈值调整
     st.subheader("🎚️ 预警阈值")
     
@@ -251,10 +238,13 @@ current_thresholds["JPY_DAILY_MOVE"] = jpy_daily_threshold
 # =============================================================================
 
 @st.cache_data(ttl=3600)
-def load_all_data(period: str, jp_yield: float):
+def load_all_data(period: str):
     """加载所有必要数据"""
     # 获取美债收益率
     us_yield = get_us_10y_yield(period)
+    
+    # 获取日债收益率 (自动获取)
+    jp_yield = get_jp_10y_yield(period)
     
     # 获取USD/JPY
     usdjpy = get_usdjpy(period)
@@ -267,6 +257,7 @@ def load_all_data(period: str, jp_yield: float):
     
     return {
         'us_yield': us_yield,
+        'jp_yield': jp_yield,
         'usdjpy': usdjpy,
         'spread': spread_df,
         'all_data': all_data,
@@ -275,7 +266,7 @@ def load_all_data(period: str, jp_yield: float):
 
 # 加载数据
 with st.spinner("正在加载数据..."):
-    data = load_all_data(selected_period, jp_yield_input)
+    data = load_all_data(selected_period)
 
 spread_df = data['spread']
 usdjpy_df = data['usdjpy']
@@ -538,8 +529,9 @@ with tab5:
     # 加载历史数据
     with st.spinner("加载历史数据..."):
         hist_us_yield = get_us_10y_yield(history_period_value)
+        hist_jp_yield = get_jp_10y_yield(history_period_value)
         hist_usdjpy = get_usdjpy(history_period_value)
-        hist_spread = calculate_yield_spread(hist_us_yield, jp_yield_input)
+        hist_spread = calculate_yield_spread(hist_us_yield, hist_jp_yield)
     
     # 历史对比图
     history_chart = create_historical_comparison_chart(hist_spread, hist_usdjpy, history_period)
@@ -612,7 +604,6 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.8rem;">
     <p>日元套利监控系统 | 数据来源: Yahoo Finance | 仅供参考，不构成投资建议</p>
-    <p>⚠️ 注意：日本国债收益率需手动更新，请确保使用最新数据</p>
 </div>
 """, unsafe_allow_html=True)
 
